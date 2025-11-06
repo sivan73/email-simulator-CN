@@ -1,0 +1,294 @@
+================================================================================
+EMAIL FLOW SIMULATOR - NARRATION SCRIPT
+================================================================================
+This script can be used to narrate the email flow simulation as it runs.
+Use this for presentations, educational sessions, or accessibility purposes.
+================================================================================
+
+INTRODUCTION
+--------------------------------------------------------------------------------
+
+"Welcome to the Email Flow Simulator. Today, we're going to explore how an 
+email message travels from a sender to a receiver across the internet. 
+
+This interactive demonstration will show you the complete journey of an email, 
+from the moment you click send, through various servers and protocols, until 
+it reaches the recipient's inbox.
+
+Let's begin by understanding what happens when you send an email. We'll watch 
+as the message flows through the SMTP protocol, gets queued by mail transfer 
+agents, travels across the internet, and finally gets retrieved by the 
+recipient using either IMAP or POP3.
+
+Are you ready? Let's start the simulation."
+
+
+STEP 1: SMTP SUBMISSION
+--------------------------------------------------------------------------------
+
+"As soon as we click send, the email client establishes a connection with the 
+SMTP server. Notice how the envelope icon appears at the SMTP client node.
+
+The client sends an EHLO command, which stands for Extended Hello. This tells 
+the server what capabilities the client supports. The server responds with its 
+available features.
+
+Now, if TLS encryption is enabled, we see the STARTTLS command. This initiates 
+an encrypted connection, ensuring that our email credentials and message content 
+are protected during transmission. You can see the TLS handshake completing 
+successfully.
+
+Next comes authentication. The client sends an AUTH PLAIN command with encoded 
+credentials. This is how the email client proves its identity to the SMTP server. 
+The server verifies the credentials and responds with '235 Authentication 
+successful'.
+
+Once authenticated, the client sends the MAIL FROM command, specifying the 
+sender's email address. The server confirms this with '250 OK'.
+
+Then comes the RCPT TO command, which specifies the recipient's email address. 
+Again, the server confirms with '250 OK'.
+
+Now for the actual message. The client sends a DATA command, and the server 
+responds with '354 End data with', indicating it's ready to receive the message 
+content. The client then sends the complete email, including headers like From, 
+To, Subject, and the message body. If there's an attachment, you'll see it 
+included as a multipart message with boundary markers.
+
+The message ends with a period on its own line, and the server responds with 
+'250 Message accepted for delivery'. This means the SMTP transaction is complete 
+and successful."
+
+
+STEP 2: MTA QUEUE - OUTGOING
+--------------------------------------------------------------------------------
+
+"The message now moves to the Outgoing Mail Transfer Agent, or MTA. Notice the 
+status bubble showing 'Queued'. This is where the message is temporarily stored 
+before being sent.
+
+The MTA performs several important tasks. First, it looks up the MX record, 
+which stands for Mail Exchange record. This DNS query finds the mail server 
+responsible for receiving emails for the recipient's domain. For example, if 
+you're sending to someone at example.com, the MTA looks up which server handles 
+mail for example.com.
+
+You can see the status changing to 'Processing' as the MTA works. Once the MX 
+record is found, the MTA knows where to send the message next. The status 
+shows 'MX record found' with the server details and priority."
+
+
+STEP 3: INTERNET TRANSFER
+--------------------------------------------------------------------------------
+
+"Now the message enters the internet phase. The envelope icon moves across the 
+network, representing the actual transmission of data packets across the 
+internet infrastructure.
+
+This is where the message travels through various routers and network nodes, 
+potentially crossing continents and oceans. The internet acts as the delivery 
+highway, routing the message towards its destination based on the recipient's 
+domain and the MX record we found earlier.
+
+The transfer happens using the SMTP protocol between mail servers. This is 
+different from the initial submission - now we're seeing server-to-server 
+communication."
+
+
+STEP 4: MTA QUEUE - INCOMING
+--------------------------------------------------------------------------------
+
+"The message arrives at the Incoming Mail Transfer Agent. Notice the status 
+bubble showing 'Received'. This is the recipient's mail server.
+
+The incoming MTA performs several validation checks. It verifies that the 
+recipient address exists and is valid. It checks for spam and malware. It 
+ensures the message meets all delivery requirements.
+
+You can see the status changing to 'Validating' as these checks happen. Once 
+validated, the message is queued for local delivery. The status shows 'Queued', 
+indicating the message is ready to be delivered to the recipient's mailbox.
+
+The MTA then hands the message to the delivery agent, which is responsible for 
+placing the message into the recipient's mailbox on the server."
+
+
+STEP 5: DELIVERY
+--------------------------------------------------------------------------------
+
+"The delivery agent now processes the message. It determines which mailbox to 
+deliver to based on the recipient's email address. The message is written to 
+the server's storage system, which could be in a Maildir format, mbox format, 
+or another mail storage system.
+
+Notice how the status bubble changes to 'Delivered' in green. The message has 
+successfully arrived in the recipient's mailbox on the server. 
+
+You can see the message appearing in the server mailbox view. It shows the 
+subject, sender information, and if there's an attachment, that's indicated 
+too. The message is now available for the recipient to retrieve."
+
+
+STEP 6: RETRIEVAL - IMAP MODE
+--------------------------------------------------------------------------------
+
+"Now let's see how the recipient retrieves the email. We're using IMAP mode, 
+which stands for Internet Message Access Protocol.
+
+The email client connects to the IMAP server, typically on port 993 for 
+encrypted connections or port 143 for unencrypted. The server responds with 
+a greeting, indicating it's ready.
+
+The client then authenticates using the LOGIN command with the username and 
+password. Once authenticated, the server responds with 'OK Logged in'.
+
+Next, the client selects the INBOX folder using the SELECT command. This tells 
+the server which mailbox to work with. The server confirms the selection.
+
+Now the client fetches the message using the FETCH command. This retrieves the 
+complete message content. Notice how the message appears in the client view 
+while still remaining in the server mailbox.
+
+This is a key feature of IMAP - messages remain on the server. This allows 
+multiple devices to access the same messages, and the server maintains the 
+state of the mailbox. You can see the sync indicator pulsing, showing that 
+the client is synchronized with the server.
+
+The client can then disconnect with the LOGOUT command, but the message 
+remains on the server for future access."
+
+
+STEP 6: RETRIEVAL - POP3 MODE
+--------------------------------------------------------------------------------
+
+"Now let's see the same process using POP3, which stands for Post Office 
+Protocol version 3.
+
+The email client connects to the POP3 server, typically on port 995 for 
+encrypted connections or port 110 for unencrypted. The server responds with 
+a greeting.
+
+The client authenticates using the USER command followed by the PASS command 
+with the password. The server verifies the credentials and responds with 
+'OK Logged in'.
+
+The client then requests a list of messages using the LIST command. The server 
+responds with the number of messages available.
+
+Next, the client retrieves the message using the RETR command. This downloads 
+the complete message to the client. Notice how the message appears in the 
+client view.
+
+Now, here's the key difference from IMAP - the client sends a DELE command 
+to delete the message from the server. The server confirms deletion, and you 
+can see the server mailbox becoming empty. This is the typical POP3 behavior 
+- messages are downloaded and then removed from the server.
+
+The client disconnects with the QUIT command, and the session is complete. 
+The message now exists only on the client device."
+
+
+KEY DIFFERENCES: IMAP vs POP3
+--------------------------------------------------------------------------------
+
+"Let me explain the key differences between IMAP and POP3.
+
+IMAP, or Internet Message Access Protocol, keeps messages on the server. This 
+means you can access your emails from multiple devices, and they'll all see 
+the same messages. IMAP supports folders, labels, and server-side searches. 
+It's ideal for people who use multiple devices or want to access their email 
+from anywhere.
+
+POP3, or Post Office Protocol 3, downloads messages to your device and typically 
+removes them from the server. This is simpler and uses less server storage, but 
+means you can only access those messages from the device that downloaded them. 
+POP3 is ideal for single-device access or when you want to keep a local copy 
+and free up server space.
+
+Both protocols serve different needs, and the choice depends on how you want 
+to manage your email."
+
+
+ADDITIONAL FEATURES EXPLANATION
+--------------------------------------------------------------------------------
+
+"Notice the controls at the top of the screen. The speed slider allows us to 
+slow down or speed up the animation, which is helpful for understanding each 
+step in detail or for quick demonstrations.
+
+The TLS toggle simulates encryption. When enabled, you see the STARTTLS command 
+in the SMTP conversation, which encrypts the connection. This is important for 
+security, protecting your credentials and message content from being intercepted.
+
+The Raw SMTP Log toggle shows the detailed command and response exchange between 
+the client and server. This is useful for understanding exactly what's happening 
+at the protocol level.
+
+The protocol toggle lets us switch between IMAP and POP3 to see the different 
+retrieval behaviors."
+
+
+TIMELINE EXPLANATION
+--------------------------------------------------------------------------------
+
+"At the bottom of the network panel, you can see a timeline showing the five 
+main steps of the email journey:
+
+Step 1: SMTP Submission - The client sends the message to the outgoing server
+Step 2: MTA Queue - The message is queued and routed
+Step 3: Transfer - The message travels across the internet
+Step 4: Delivery - The message is delivered to the recipient's mailbox
+Step 5: Retrieval - The recipient retrieves the message using IMAP or POP3
+
+As the simulation progresses, each step is highlighted, giving you a clear 
+visual indication of where we are in the process."
+
+
+ERROR SCENARIOS (IF APPLICABLE)
+--------------------------------------------------------------------------------
+
+"In real-world scenarios, errors can occur at various stages. For example, 
+the recipient address might not exist, resulting in a '550 Recipient rejected' 
+error. The server might be temporarily unavailable, causing a retry. Or 
+authentication might fail if the credentials are incorrect.
+
+These errors are an important part of understanding email delivery. The SMTP 
+protocol includes response codes that indicate success or failure at each 
+stage, allowing the system to handle errors gracefully and provide feedback 
+to the sender."
+
+
+CONCLUSION
+--------------------------------------------------------------------------------
+
+"And that completes our journey through the email delivery process! 
+
+We've seen how an email travels from the sender's client through SMTP submission, 
+gets queued by mail transfer agents, travels across the internet, gets delivered 
+to the recipient's mailbox, and finally gets retrieved using IMAP or POP3.
+
+This process, which seems instantaneous to users, actually involves multiple 
+protocols, servers, and validation steps. Understanding this flow is essential 
+for anyone working with email systems, network administration, or web 
+development.
+
+You can reset the simulation and try different scenarios - enable TLS encryption, 
+add attachments, switch between IMAP and POP3, or adjust the speed to see each 
+step in detail.
+
+Thank you for exploring the Email Flow Simulator. I hope this has given you 
+a better understanding of how email works across the internet!"
+
+
+================================================================================
+END OF NARRATION SCRIPT
+================================================================================
+
+TIPS FOR USING THIS SCRIPT:
+- Practice reading it at different speeds to match the animation
+- Pause appropriately when the animation waits for user interaction
+- Adjust timing based on the speed slider setting
+- Emphasize key terms like SMTP, IMAP, POP3, MTA, and TLS
+- Use a clear, educational tone suitable for students
+- Feel free to improvise based on what's happening on screen
+
