@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Flow Simulator - Educational Tool</title>
+    <style>
+        /* ============================================================================
+           EMAIL FLOW SIMULATOR - Educational Tool
+           ============================================================================
+           This is a front-end only educational simulator that demonstrates how email
+           travels from sender to receiver using SMTP, MTA queues, and IMAP/POP3.
+           
+           How to run:
+           - Simply open this file in a modern web browser
+           - No server required, no dependencies needed
+           
+           How to extend:
+           - Add new protocol simulations in the simulate* functions
+           - Modify animation timing in the animateMailFlow function
+           - Add new error scenarios in the simulateError function
+           - Extend the SMTP log with more detailed commands
+           ============================================================================ */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        /* Control Bar */
+        .controls {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.toggle-slider {
+            background-color: #28a745;
+        }
+
+        input:checked+.toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .speed-slider {
+            width: 150px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panel Styles */
+        .panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+
+        /* Sender Panel */
+        .email-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .info-box h3 {
+            font-size: 1em;
+            margin-bottom: 8px;
+            color: #1976D2;
+        }
+
+        /* Network Panel */
+        .network-pipeline {
+            position: relative;
+            min-height: 400px;
+        }
+
+        .pipeline-path {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .pipeline-nodes {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            padding: 20px 0;
+        }
+
+        .node {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .node.active {
+            background: #28a745;
+            border-color: #28a745;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .node.error {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .node .node-icon {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .node .node-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-align: center;
+            color: #495057;
+        }
+
+        .node.active .node-label {
+            color: white;
+        }
+
+        .status-bubble {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-bubble.visible {
+            opacity: 1;
+        }
+
+        .status-bubble.queued {
+            background: #ffc107;
+        }
+
+        .status-bubble.retry {
+            background: #fd7e14;
+        }
+
+        .status-bubble.delivered {
+            background: #28a745;
+            color: white;
+        }
+
+        .envelope {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            font-size: 2em;
+            z-index: 10;
+            transition: left 0.5s ease;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+
+        .envelope.large {
+            font-size: 3em;
+        }
+
+        .smtp-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .smtp-log .command {
+            color: #4ec9b0;
+        }
+
+        .smtp-log .response {
+            color: #ce9178;
+        }
+
+        .smtp-log .info {
+            color: #9cdcfe;
+        }
+
+        /* Receiver Panel */
+        .receiver-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .mailbox {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 200px;
+        }
+
+        .mailbox h3 {
+            font-size: 1em;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .message-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .message-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .message-item .subject {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .message-item .from {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+
+        .client-view {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 150px;
+        }
+
+        .client-view h3 {
+            font-size: 1em;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .sync-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Logs Panel */
+        .logs-panel {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .logs-header:hover {
+            background: #dee2e6;
+        }
+
+        .logs-content {
+            display: none;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .logs-content.expanded {
+            display: block;
+        }
+
+        .log-section {
+            margin-bottom: 20px;
+        }
+
+        .log-section h3 {
+            font-size: 1em;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .log-entry.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .log-entry.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .log-entry.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85em;
+            font-weight: normal;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Timeline */
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .timeline-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 10px;
+        }
+
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 0;
+            width: 100%;
+            height: 2px;
+            background: #dee2e6;
+            z-index: 1;
+        }
+
+        .timeline-step:last-child::after {
+            display: none;
+        }
+
+        .timeline-step.active::after {
+            background: #28a745;
+        }
+
+        .timeline-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border-radius: 50%;
+            background: #dee2e6;
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 5px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .timeline-step.active .timeline-number {
+            background: #28a745;
+            color: white;
+            transform: scale(1.2);
+        }
+
+        .timeline-label {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .timeline-step.active .timeline-label {
+            color: #495057;
+            font-weight: 600;
+        }
+
+        /* Animation Controls */
+        .animation-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .speed-slider {
+                width: 100%;
+            }
+
+            .node {
+                width: 60px;
+                height: 60px;
+            }
+
+            .node .node-icon {
+                font-size: 1.4em;
+            }
+
+            .node .node-label {
+                font-size: 0.65em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📧 Email Flow Simulator</h1>
+            <p>Learn how email travels from sender to receiver across the internet</p>
+        </header>
+
+        <div class="controls">
+            <button id="sendBtn" class="btn-primary">Send Email</button>
+            <button id="pauseBtn" class="btn-secondary btn-small" style="display: none;">Pause</button>
+            <button id="stepBtn" class="btn-secondary btn-small" style="display: none;">Step</button>
+            <button id="resetBtn" class="btn-secondary">Reset</button>
+
+            <div class="control-group">
+                <label>Protocol:</label>
+                <select id="protocolToggle">
+                    <option value="imap">IMAP</option>
+                    <option value="pop3">POP3</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="rawLogToggle">
+                    Show Raw SMTP Log
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="tlsToggle">
+                    Simulate TLS
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label>Speed:</label>
+                <input type="range" id="speedSlider" class="speed-slider" min="1" max="10" value="5">
+                <span id="speedValue">5x</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Sender Panel -->
+            <div class="panel">
+                <h2>📤 Sender</h2>
+                <form id="emailForm" class="email-form">
+                    <div class="form-group">
+                        <label for="fromEmail">From:</label>
+                        <input type="email" id="fromEmail" value="alice@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="toEmail">To:</label>
+                        <input type="email" id="toEmail" value="bob@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="subject">Subject:</label>
+                        <input type="text" id="subject" value="Hello from Email Simulator!" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Message:</label>
+                        <textarea id="message"
+                            required>This is a demonstration of how email flows through the internet using SMTP, MTA queues, and IMAP/POP3 protocols.</textarea>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="hasAttachment">
+                        <label for="hasAttachment">Include attachment (simulated)</label>
+                    </div>
+                </form>
+
+                <div class="info-box">
+                    <h3>📚 SMTP (Simple Mail Transfer Protocol)</h3>
+                    <p><strong>Submission Port:</strong> 587 (TLS) or 25 (non-encrypted)</p>
+                    <p><strong>Authentication:</strong> Before sending, the client authenticates with the SMTP server
+                        using username and password (e.g., AUTH PLAIN).</p>
+                    <p><strong>Process:</strong> Client connects → Authenticates → Sends message → Server queues for
+                        delivery</p>
+                </div>
+            </div>
+
+            <!-- Network Pipeline Panel -->
+            <div class="panel">
+                <h2>🌐 Network / Mail Pipeline</h2>
+                <div class="network-pipeline">
+                    <div class="pipeline-path"></div>
+                    <div class="envelope" id="envelope">📧</div>
+                    <div class="pipeline-nodes">
+                        <div class="node" id="node-smtp">
+                            <div class="node-icon">📤</div>
+                            <div class="node-label">SMTP<br>Client</div>
+                        </div>
+                        <div class="node" id="node-mta-out">
+                            <div class="node-icon">📮</div>
+                            <div class="node-label">Outgoing<br>MTA</div>
+                            <div class="status-bubble" id="status-mta-out"></div>
+                        </div>
+                        <div class="node" id="node-internet">
+                            <div class="node-icon">🌐</div>
+                            <div class="node-label">Internet</div>
+                        </div>
+                        <div class="node" id="node-mta-in">
+                            <div class="node-icon">📮</div>
+                            <div class="node-label">Incoming<br>MTA</div>
+                            <div class="status-bubble" id="status-mta-in"></div>
+                        </div>
+                        <div class="node" id="node-delivery">
+                            <div class="node-icon">📬</div>
+                            <div class="node-label">Delivery<br>Agent</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="smtp-log" id="smtpLog"></div>
+
+                <div class="timeline" id="timeline">
+                    <div class="timeline-step" data-step="1">
+                        <div class="timeline-number">1</div>
+                        <div class="timeline-label">SMTP Submission</div>
+                    </div>
+                    <div class="timeline-step" data-step="2">
+                        <div class="timeline-number">2</div>
+                        <div class="timeline-label">MTA Queue</div>
+                    </div>
+                    <div class="timeline-step" data-step="3">
+                        <div class="timeline-number">3</div>
+                        <div class="timeline-label">Transfer</div>
+                    </div>
+                    <div class="timeline-step" data-step="4">
+                        <div class="timeline-number">4</div>
+                        <div class="timeline-label">Delivery</div>
+                    </div>
+                    <div class="timeline-step" data-step="5">
+                        <div class="timeline-number">5</div>
+                        <div class="timeline-label">Retrieval</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receiver Panel -->
+            <div class="panel">
+                <h2>📥 Receiver</h2>
+                <div class="receiver-content">
+                    <div class="mailbox">
+                        <h3>📮 Server Mailbox <span class="tooltip">ℹ️
+                                <span class="tooltiptext">IMAP: Messages stay on server. POP3: Messages are downloaded
+                                    and optionally removed.</span>
+                            </span></h3>
+                        <div id="serverMailbox"></div>
+                    </div>
+                    <div class="client-view">
+                        <h3>💻 Client
+                            <span id="protocolLabel">IMAP</span> View
+                            <span id="syncIndicator" class="sync-indicator" style="display: none;"></span>
+                        </h3>
+                        <div id="clientMailbox"></div>
+                    </div>
+                </div>
+
+                <div class="info-box" id="protocolInfo">
+                    <h3>📚 IMAP (Internet Message Access Protocol)</h3>
+                    <p><strong>Port:</strong> 993 (TLS) or 143 (non-encrypted)</p>
+                    <p><strong>Key Features:</strong> Messages remain on the server, supports folders, syncs state
+                        across devices.</p>
+                    <p><strong>Usage:</strong> Ideal for multiple devices accessing the same mailbox.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Panel -->
+        <div class="logs-panel panel">
+            <div class="logs-header" id="logsHeader">
+                <h2>📋 Detailed Logs</h2>
+                <span>▼</span>
+            </div>
+            <div class="logs-content" id="logsContent">
+                <div class="log-section">
+                    <h3>SMTP Transaction Log</h3>
+                    <div id="smtpTransactionLog"></div>
+                </div>
+                <div class="log-section">
+                    <h3>MTA Queue Events</h3>
+                    <div id="mtaLog"></div>
+                </div>
+                <div class="log-section">
+                    <h3 id="retrievalLogTitle">IMAP Retrieval Log</h3>
+                    <div id="retrievalLog"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // EMAIL FLOW SIMULATOR - JavaScript Logic
+        // ============================================================================
+
+        // State Management
+        const state = {
+            isAnimating: false,
+            isPaused: false,
+            currentStep: 0,
+            speed: 5,
+            protocol: 'imap',
+            tlsEnabled: false,
+            rawLogEnabled: false,
+            hasAttachment: false,
+            message: null,
+            animationId: null
+        };
+
+        // DOM Elements
+        const elements = {
+            sendBtn: document.getElementById('sendBtn'),
+            pauseBtn: document.getElementById('pauseBtn'),
+            stepBtn: document.getElementById('stepBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            protocolToggle: document.getElementById('protocolToggle'),
+            rawLogToggle: document.getElementById('rawLogToggle'),
+            tlsToggle: document.getElementById('tlsToggle'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
+            emailForm: document.getElementById('emailForm'),
+            envelope: document.getElementById('envelope'),
+            smtpLog: document.getElementById('smtpLog'),
+            serverMailbox: document.getElementById('serverMailbox'),
+            clientMailbox: document.getElementById('clientMailbox'),
+            protocolInfo: document.getElementById('protocolInfo'),
+            protocolLabel: document.getElementById('protocolLabel'),
+            syncIndicator: document.getElementById('syncIndicator'),
+            logsHeader: document.getElementById('logsHeader'),
+            logsContent: document.getElementById('logsContent'),
+            smtpTransactionLog: document.getElementById('smtpTransactionLog'),
+            mtaLog: document.getElementById('mtaLog'),
+            retrievalLog: document.getElementById('retrievalLog'),
+            retrievalLogTitle: document.getElementById('retrievalLogTitle')
+        };
+
+        // Initialize Event Listeners
+        function initEventListeners() {
+            elements.sendBtn.addEventListener('click', handleSend);
+            elements.pauseBtn.addEventListener('click', handlePause);
+            elements.stepBtn.addEventListener('click', handleStep);
+            elements.resetBtn.addEventListener('click', handleReset);
+            elements.protocolToggle.addEventListener('change', handleProtocolChange);
+            elements.rawLogToggle.addEventListener('change', handleRawLogToggle);
+            elements.tlsToggle.addEventListener('change', handleTlsToggle);
+            elements.speedSlider.addEventListener('input', handleSpeedChange);
+            elements.emailForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleSend();
+            });
+            elements.logsHeader.addEventListener('click', toggleLogs);
+
+            // Keyboard accessibility
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && document.activeElement.tagName !== 'TEXTAREA') {
+                    if (!state.isAnimating) {
+                        handleSend();
+                    }
+                }
+            });
+        }
+
+        // Handle Send Button
+        function handleSend() {
+            if (state.isAnimating) return;
+
+            const formData = {
+                from: elements.emailForm.querySelector('#fromEmail').value,
+                to: elements.emailForm.querySelector('#toEmail').value,
+                subject: elements.emailForm.querySelector('#subject').value,
+                message: elements.emailForm.querySelector('#message').value,
+                hasAttachment: elements.emailForm.querySelector('#hasAttachment').checked
+            };
+
+            if (!formData.from || !formData.to || !formData.subject || !formData.message) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            state.message = formData;
+            state.hasAttachment = formData.hasAttachment;
+            state.isAnimating = true;
+            state.currentStep = 0;
+            state.isPaused = false;
+
+            elements.sendBtn.disabled = true;
+            elements.pauseBtn.style.display = 'inline-block';
+            elements.stepBtn.style.display = 'inline-block';
+
+            // Update envelope size if attachment
+            if (state.hasAttachment) {
+                elements.envelope.classList.add('large');
+            } else {
+                elements.envelope.classList.remove('large');
+            }
+
+            // Clear previous logs
+            clearLogs();
+
+            // Start animation
+            animateMailFlow();
+        }
+
+        // Handle Pause/Resume
+        function handlePause() {
+            state.isPaused = !state.isPaused;
+            elements.pauseBtn.textContent = state.isPaused ? 'Resume' : 'Pause';
+            if (!state.isPaused) {
+                animateMailFlow();
+            }
+        }
+
+        // Handle Step
+        function handleStep() {
+            if (state.isPaused) {
+                state.isPaused = false;
+                animateMailFlow();
+                setTimeout(() => {
+                    state.isPaused = true;
+                    elements.pauseBtn.textContent = 'Resume';
+                }, 100);
+            }
+        }
+
+        // Handle Reset
+        function handleReset() {
+            state.isAnimating = false;
+            state.isPaused = false;
+            state.currentStep = 0;
+            state.message = null;
+
+            elements.sendBtn.disabled = false;
+            elements.pauseBtn.style.display = 'none';
+            elements.stepBtn.style.display = 'none';
+            elements.pauseBtn.textContent = 'Pause';
+
+            // Reset visual state
+            resetAnimation();
+            clearLogs();
+        }
+
+        // Handle Protocol Change
+        function handleProtocolChange(e) {
+            state.protocol = e.target.value;
+            elements.protocolLabel.textContent = state.protocol.toUpperCase();
+            updateProtocolInfo();
+        }
+
+        // Handle Raw Log Toggle
+        function handleRawLogToggle(e) {
+            state.rawLogEnabled = e.target.checked;
+        }
+
+        // Handle TLS Toggle
+        function handleTlsToggle(e) {
+            state.tlsEnabled = e.target.checked;
+        }
+
+        // Handle Speed Change
+        function handleSpeedChange(e) {
+            state.speed = parseInt(e.target.value);
+            elements.speedValue.textContent = state.speed + 'x';
+        }
+
+        // Toggle Logs Panel
+        function toggleLogs() {
+            elements.logsContent.classList.toggle('expanded');
+        }
+
+        // Update Protocol Info
+        function updateProtocolInfo() {
+            if (state.protocol === 'imap') {
+                elements.protocolInfo.innerHTML = `
+                    <h3>📚 IMAP (Internet Message Access Protocol)</h3>
+                    <p><strong>Port:</strong> 993 (TLS) or 143 (non-encrypted)</p>
+                    <p><strong>Key Features:</strong> Messages remain on the server, supports folders, syncs state across devices.</p>
+                    <p><strong>Usage:</strong> Ideal for multiple devices accessing the same mailbox.</p>
+                `;
+                elements.retrievalLogTitle.textContent = 'IMAP Retrieval Log';
+            } else {
+                elements.protocolInfo.innerHTML = `
+                    <h3>📚 POP3 (Post Office Protocol 3)</h3>
+                    <p><strong>Port:</strong> 995 (TLS) or 110 (non-encrypted)</p>
+                    <p><strong>Key Features:</strong> Downloads messages to client, optionally deletes from server after retrieval.</p>
+                    <p><strong>Usage:</strong> Simple, single-device email access. Messages are typically removed from server after download.</p>
+                `;
+                elements.retrievalLogTitle.textContent = 'POP3 Retrieval Log';
+            }
+        }
+
+        // Clear Logs
+        function clearLogs() {
+            elements.smtpLog.innerHTML = '';
+            elements.smtpTransactionLog.innerHTML = '';
+            elements.mtaLog.innerHTML = '';
+            elements.retrievalLog.innerHTML = '';
+            elements.serverMailbox.innerHTML = '';
+            elements.clientMailbox.innerHTML = '';
+        }
+
+        // Reset Animation
+        function resetAnimation() {
+            // Reset nodes
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('active', 'error');
+            });
+
+            // Reset envelope
+            elements.envelope.style.left = '0px';
+            elements.envelope.classList.remove('large');
+
+            // Reset status bubbles
+            document.querySelectorAll('.status-bubble').forEach(bubble => {
+                bubble.classList.remove('visible', 'queued', 'retry', 'delivered');
+            });
+
+            // Reset timeline
+            document.querySelectorAll('.timeline-step').forEach(step => {
+                step.classList.remove('active');
+            });
+        }
+
+        // Main Animation Function
+        async function animateMailFlow() {
+            if (!state.isAnimating || state.isPaused) return;
+
+            const steps = [
+                { name: 'smtp', duration: 2000, action: simulateSMTP },
+                { name: 'mta-out', duration: 1500, action: simulateMTAQueue },
+                { name: 'internet', duration: 1000, action: simulateInternetTransfer },
+                { name: 'mta-in', duration: 1500, action: simulateMTAIncoming },
+                { name: 'delivery', duration: 1000, action: simulateDelivery },
+                { name: 'retrieval', duration: 2000, action: simulateRetrieval }
+            ];
+
+            if (state.currentStep >= steps.length) {
+                // Animation complete
+                state.isAnimating = false;
+                elements.sendBtn.disabled = false;
+                elements.pauseBtn.style.display = 'none';
+                elements.stepBtn.style.display = 'none';
+                return;
+            }
+
+            const step = steps[state.currentStep];
+            const adjustedDuration = step.duration / state.speed;
+
+            // Update timeline
+            updateTimeline(state.currentStep + 1);
+
+            // Activate node
+            activateNode(step.name);
+
+            // Move envelope
+            moveEnvelopeToNode(step.name);
+
+            // Execute step action
+            await step.action();
+
+            // Wait for step duration
+            await sleep(adjustedDuration);
+
+            state.currentStep++;
+
+            if (state.isAnimating && !state.isPaused) {
+                animateMailFlow();
+            }
+        }
+
+        // Activate Node
+        function activateNode(nodeName) {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('active');
+            });
+            const node = document.getElementById(`node-${nodeName}`);
+            if (node) {
+                node.classList.add('active');
+            }
+        }
+
+        // Move Envelope
+        function moveEnvelopeToNode(nodeName) {
+            const nodes = ['smtp', 'mta-out', 'internet', 'mta-in', 'delivery'];
+            const index = nodes.indexOf(nodeName);
+            if (index !== -1) {
+                const percentage = (index / (nodes.length - 1)) * 100;
+                elements.envelope.style.left = `${percentage}%`;
+            }
+        }
+
+        // Update Timeline
+        function updateTimeline(step) {
+            document.querySelectorAll('.timeline-step').forEach((stepEl, index) => {
+                if (index + 1 <= step) {
+                    stepEl.classList.add('active');
+                } else {
+                    stepEl.classList.remove('active');
+                }
+            });
+        }
+
+        // Simulate SMTP
+        async function simulateSMTP() {
+            addLogEntry(elements.smtpLog, 'Connecting to SMTP server...', 'info');
+            addLogEntry(elements.smtpTransactionLog, 'Client connecting to SMTP server on port ' + (state.tlsEnabled ? '587' : '25'), 'info');
+
+            await sleep(300 / state.speed);
+            addSMTPLog('220 mail.example.com ESMTP ready');
+            addLogEntry(elements.smtpTransactionLog, 'Server: 220 mail.example.com ESMTP ready', 'success');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('EHLO client.example.com', 'command');
+            addLogEntry(elements.smtpTransactionLog, 'Client: EHLO client.example.com', 'info');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('250-mail.example.com Hello');
+            addSMTPLog('250-SIZE 52428800');
+            addSMTPLog('250-AUTH PLAIN LOGIN');
+            if (state.tlsEnabled) {
+                addSMTPLog('250-STARTTLS');
+                addLogEntry(elements.smtpTransactionLog, 'Server: 250-STARTTLS', 'info');
+                await sleep(200 / state.speed);
+                addSMTPLog('STARTTLS', 'command');
+                addLogEntry(elements.smtpTransactionLog, 'Client: STARTTLS', 'info');
+                await sleep(200 / state.speed);
+                addSMTPLog('220 Ready to start TLS');
+                addLogEntry(elements.smtpTransactionLog, 'TLS handshake completed', 'success');
+            }
+            addSMTPLog('250 OK');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('AUTH PLAIN ' + btoa(`\0${state.message.from}\0password`), 'command');
+            addLogEntry(elements.smtpTransactionLog, 'Client: AUTH PLAIN (authenticating...)', 'info');
+
+            await sleep(300 / state.speed);
+            addSMTPLog('235 Authentication successful');
+            addLogEntry(elements.smtpTransactionLog, 'Server: 235 Authentication successful', 'success');
+
+            await sleep(200 / state.speed);
+            addSMTPLog(`MAIL FROM:<${state.message.from}>`, 'command');
+            addLogEntry(elements.smtpTransactionLog, `Client: MAIL FROM:<${state.message.from}>`, 'info');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('250 OK');
+            addLogEntry(elements.smtpTransactionLog, 'Server: 250 OK', 'success');
+
+            await sleep(200 / state.speed);
+            addSMTPLog(`RCPT TO:<${state.message.to}>`, 'command');
+            addLogEntry(elements.smtpTransactionLog, `Client: RCPT TO:<${state.message.to}>`, 'info');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('250 OK');
+            addLogEntry(elements.smtpTransactionLog, 'Server: 250 OK', 'success');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('DATA', 'command');
+            addLogEntry(elements.smtpTransactionLog, 'Client: DATA', 'info');
+
+            await sleep(200 / state.speed);
+            addSMTPLog('354 End data with <CR><LF>.<CR><LF>');
+            addSMTPLog('From: ' + state.message.from);
+            addSMTPLog('To: ' + state.message.to);
+            addSMTPLog('Subject: ' + state.message.subject);
+            if (state.hasAttachment) {
+                addSMTPLog('Content-Type: multipart/mixed; boundary="boundary123"');
+                addSMTPLog('--boundary123');
+                addSMTPLog('Content-Type: text/plain');
+                addSMTPLog('');
+                addSMTPLog(state.message.message);
+                addSMTPLog('--boundary123');
+                addSMTPLog('Content-Type: application/octet-stream');
+                addSMTPLog('Content-Disposition: attachment; filename="document.pdf"');
+                addSMTPLog('[Binary attachment data]');
+                addSMTPLog('--boundary123--');
+            } else {
+                addSMTPLog('Content-Type: text/plain');
+                addSMTPLog('');
+                addSMTPLog(state.message.message);
+            }
+            addSMTPLog('.');
+
+            await sleep(300 / state.speed);
+            addSMTPLog('250 Message accepted for delivery');
+            addLogEntry(elements.smtpTransactionLog, 'Server: 250 Message accepted for delivery', 'success');
+            addLogEntry(elements.smtpTransactionLog, 'SMTP transaction completed successfully', 'success');
+        }
+
+        // Simulate MTA Queue
+        async function simulateMTAQueue() {
+            const statusBubble = document.getElementById('status-mta-out');
+            statusBubble.textContent = 'Queued';
+            statusBubble.classList.add('visible', 'queued');
+            addLogEntry(elements.mtaLog, 'Message queued in outgoing MTA', 'info');
+
+            await sleep(500 / state.speed);
+            statusBubble.textContent = 'Processing...';
+            statusBubble.classList.remove('queued');
+            statusBubble.classList.add('retry');
+            addLogEntry(elements.mtaLog, 'MTA looking up MX record for ' + state.message.to.split('@')[1], 'info');
+
+            await sleep(500 / state.speed);
+            addLogEntry(elements.mtaLog, 'MX record found: mail.example.com (priority 10)', 'success');
+        }
+
+        // Simulate Internet Transfer
+        async function simulateInternetTransfer() {
+            addLogEntry(elements.mtaLog, 'Initiating transfer across the internet...', 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.mtaLog, 'Connecting to recipient MTA...', 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.mtaLog, 'Transfer in progress...', 'info');
+        }
+
+        // Simulate MTA Incoming
+        async function simulateMTAIncoming() {
+            const statusBubble = document.getElementById('status-mta-in');
+            statusBubble.textContent = 'Received';
+            statusBubble.classList.add('visible', 'queued');
+            addLogEntry(elements.mtaLog, 'Message received by incoming MTA', 'success');
+
+            await sleep(500 / state.speed);
+            statusBubble.textContent = 'Validating...';
+            addLogEntry(elements.mtaLog, 'Validating recipient address...', 'info');
+
+            await sleep(500 / state.speed);
+            statusBubble.textContent = 'Queued';
+            addLogEntry(elements.mtaLog, 'Message queued for local delivery', 'success');
+        }
+
+        // Simulate Delivery
+        async function simulateDelivery() {
+            addLogEntry(elements.mtaLog, 'Delivery agent processing message...', 'info');
+            await sleep(400 / state.speed);
+            addLogEntry(elements.mtaLog, 'Message delivered to mailbox', 'success');
+
+            const statusBubble = document.getElementById('status-mta-in');
+            statusBubble.textContent = 'Delivered';
+            statusBubble.classList.remove('queued');
+            statusBubble.classList.add('delivered');
+
+            // Add message to server mailbox
+            addMessageToServerMailbox();
+        }
+
+        // Simulate Retrieval
+        async function simulateRetrieval() {
+            if (state.protocol === 'imap') {
+                await simulateIMAP();
+            } else {
+                await simulatePOP3();
+            }
+        }
+
+        // Simulate IMAP
+        async function simulateIMAP() {
+            elements.syncIndicator.style.display = 'inline-block';
+            addLogEntry(elements.retrievalLog, 'IMAP client connecting to server on port ' + (state.tlsEnabled ? '993' : '143'), 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.retrievalLog, '* OK IMAP server ready', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: A1 LOGIN user password', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'A1 OK Logged in', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: A2 SELECT INBOX', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'A2 OK [READ-WRITE] INBOX selected', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: A3 FETCH 1 (BODY[])', 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.retrievalLog, 'A3 OK Fetch completed', 'success');
+            addLogEntry(elements.retrievalLog, 'Message synced to client (still on server)', 'success');
+
+            // Add to client mailbox (message remains on server)
+            addMessageToClientMailbox();
+            addLogEntry(elements.retrievalLog, 'Client: A4 LOGOUT', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'A4 OK Logout completed', 'success');
+        }
+
+        // Simulate POP3
+        async function simulatePOP3() {
+            addLogEntry(elements.retrievalLog, 'POP3 client connecting to server on port ' + (state.tlsEnabled ? '995' : '110'), 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK POP3 server ready', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: USER user', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK Password required', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: PASS password', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK Logged in', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: LIST', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK 1 message(s)', 'success');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: RETR 1', 'info');
+            await sleep(300 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK Message follows', 'success');
+            addLogEntry(elements.retrievalLog, 'Message downloaded to client', 'success');
+
+            // Add to client mailbox
+            addMessageToClientMailbox();
+
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: DELE 1', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK Message deleted', 'success');
+            addLogEntry(elements.retrievalLog, 'Message removed from server (POP3 behavior)', 'warning');
+
+            // Remove from server mailbox
+            elements.serverMailbox.innerHTML = '<p style="color: #6c757d; font-style: italic;">Mailbox empty (message downloaded and deleted)</p>';
+
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, 'Client: QUIT', 'info');
+            await sleep(200 / state.speed);
+            addLogEntry(elements.retrievalLog, '+OK Goodbye', 'success');
+        }
+
+        // Add Message to Server Mailbox
+        function addMessageToServerMailbox() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-item';
+            messageDiv.innerHTML = `
+                <div class="subject">${state.message.subject}</div>
+                <div class="from">From: ${state.message.from}</div>
+                ${state.hasAttachment ? '<div style="font-size: 0.8em; color: #6c757d; margin-top: 5px;">📎 Attachment</div>' : ''}
+            `;
+            elements.serverMailbox.appendChild(messageDiv);
+        }
+
+        // Add Message to Client Mailbox
+        function addMessageToClientMailbox() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-item';
+            messageDiv.innerHTML = `
+                <div class="subject">${state.message.subject}</div>
+                <div class="from">From: ${state.message.from}</div>
+                <div style="font-size: 0.85em; margin-top: 8px; color: #495057;">${state.message.message.substring(0, 100)}${state.message.message.length > 100 ? '...' : ''}</div>
+                ${state.hasAttachment ? '<div style="font-size: 0.8em; color: #6c757d; margin-top: 5px;">📎 Attachment</div>' : ''}
+            `;
+            elements.clientMailbox.appendChild(messageDiv);
+        }
+
+        // Add SMTP Log Entry
+        function addSMTPLog(text, type = 'response') {
+            if (!state.rawLogEnabled && type !== 'command' && type !== 'response') return;
+
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = text;
+            elements.smtpLog.appendChild(logEntry);
+            elements.smtpLog.scrollTop = elements.smtpLog.scrollHeight;
+        }
+
+        // Add Log Entry
+        function addLogEntry(container, text, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Utility: Sleep
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Initialize
+        initEventListeners();
+        updateProtocolInfo();
+    </script>
+</body>
+
+</html>
